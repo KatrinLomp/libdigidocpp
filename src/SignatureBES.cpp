@@ -31,6 +31,7 @@
 #include "util/DateTime.h"
 #include "util/File.h"
 #include "xml/ts_102918v010201.hxx"
+#include "xml/OpenDocument_dsig.hxx"
 
 #include <xercesc/dom/DOM.hpp>
 #include <xercesc/framework/MemBufInputSource.hpp>
@@ -73,6 +74,7 @@ static string to_string(T value)
 const string SignatureBES::XADES_NAMESPACE = "http://uri.etsi.org/01903/v1.3.2#";
 const string SignatureBES::XADESv141_NAMESPACE = "http://uri.etsi.org/01903/v1.4.1#";
 const string SignatureBES::ASIC_NAMESPACE = "http://uri.etsi.org/02918/v1.2.1#";
+const string SignatureBES::OPENDOCUMENT_NAMESPACE = "urn:oasis:names:tc:opendocument:xmlns:digitalsignature:1.0";
 const map<string,SignatureBES::Policy> SignatureBES::policylist = {
     {"urn:oid:1.3.6.1.4.1.10015.1000.3.2.1",{
         "BDOC – FORMAT FOR DIGITAL SIGNATURES",
@@ -177,8 +179,9 @@ static Base64Binary toBase64(const vector<unsigned char> &v)
  * Creates an empty BDOC-BES signature with mandatory XML nodes.
  */
 SignatureBES::SignatureBES(unsigned int id, BDoc *bdoc, Signer *signer)
- : signature(0)
- , asicsignature(0)
+ : signature(nullptr)
+ , asicsignature(nullptr)
+ , odfsignature(nullptr)
  , bdoc(bdoc)
 {
     string nr = "S" + to_string(id);
@@ -274,6 +277,7 @@ SignatureBES::SignatureBES(unsigned int id, BDoc *bdoc, Signer *signer)
 SignatureBES::SignatureBES(istream &sigdata, BDoc *bdoc)
  : signature(nullptr)
  , asicsignature(nullptr)
+ , odfsignature(nullptr)
  , bdoc(bdoc)
 {
     try
@@ -287,12 +291,34 @@ SignatureBES::SignatureBES(istream &sigdata, BDoc *bdoc)
         properties.schema_location(XADESv141_NAMESPACE, File::fullPathUrl(Conf::instance()->xsdPath() + "/XAdESv141.xsd"));
         properties.schema_location(URI_ID_DSIG, File::fullPathUrl(Conf::instance()->xsdPath() + "/xmldsig-core-schema.xsd"));
         properties.schema_location(ASIC_NAMESPACE, File::fullPathUrl(Conf::instance()->xsdPath() + "/ts_102918v010201.xsd"));
-        asicsignature = xAdESSignatures(is, Flags::dont_initialize, properties).release();
-        if(asicsignature->signature().size() > 1)
-            THROW("More than one signature in signatures.xml file is unsupported");
-        if(asicsignature->signature().empty())
-            THROW("Failed to parse signature XML");
-        signature = &asicsignature->signature()[0];
+        properties.schema_location(OPENDOCUMENT_NAMESPACE, File::fullPathUrl(Conf::instance()->xsdPath() + "/OpenDocument_dsig.xsd"));
+
+        /* http://www.etsi.org/deliver/etsi_ts/102900_102999/102918/01.03.01_60/ts_102918v010301p.pdf
+         * 6.2.2
+         * 3) The root element of each "*signatures*.xml" content shall be either:
+         * a) <asic:XAdESSignatures> as specified in clause A.5, the recommended format; or
+         * b) <document-signatures> as specified in OASIS Open Document Format [9]; or
+         *
+         * Case container is ADoc 1.0 then handle document-signatures root element
+         */
+        if(bdoc->mediaType() == BDoc::ADOC_MIMETYPE)
+        {
+            odfsignature = document_signatures(is, Flags::dont_initialize, properties).release();
+            if(odfsignature->signature().size() > 1)
+                THROW("More than one signature in signatures.xml file is unsupported");
+            if(odfsignature->signature().empty())
+                THROW("Failed to parse signature XML");
+            signature = &odfsignature->signature()[0];
+        }
+        else
+        {
+            asicsignature = xAdESSignatures(is, Flags::dont_initialize, properties).release();
+            if(asicsignature->signature().size() > 1)
+                THROW("More than one signature in signatures.xml file is unsupported");
+            if(asicsignature->signature().empty())
+                THROW("Failed to parse signature XML");
+            signature = &asicsignature->signature()[0];
+        }
     }
     catch(const Parsing& e)
     {
@@ -371,6 +397,7 @@ SignatureBES::SignatureBES(istream &sigdata, BDoc *bdoc)
 SignatureBES::~SignatureBES()
 {
     delete asicsignature;
+    delete odfsignature;
 }
 
 string SignatureBES::policy() const

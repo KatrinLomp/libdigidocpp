@@ -102,6 +102,10 @@ XSD_SCHEMA( xsd_SRCS XML_HEADER ${XML_DIR} ${SCHEMA_DIR}/ts_102918v010201.xsd
     --namespace-map http://www.w3.org/2000/09/xmldsig\#=digidoc::dsig
     --namespace-map http://uri.etsi.org/01903/v1.3.2\#=digidoc::xades
     --namespace-map http://uri.etsi.org/02918/v1.2.1\#=digidoc::asic )
+XSD_SCHEMA( xsd_SRCS XML_HEADER ${XML_DIR} ${SCHEMA_DIR}/OpenDocument_dsig.xsd
+    --root-element document-signatures
+    --namespace-map urn:oasis:names:tc:opendocument:xmlns:digitalsignature:1.0=digidoc::asic
+    --namespace-map http://www.w3.org/2000/09/xmldsig\#=digidoc::dsig)
 list( APPEND xsd_SRCS xml/ObjectType.cpp xml/AnyType.cpp xml/UnsignedSignaturePropertiesType.cpp )
 
 XSD_SCHEMA( xsd_SRCS XML_HEADER ${XML_DIR} ${SCHEMA_DIR}/xml.xsd
@@ -152,6 +156,7 @@ set( SCHEMA_FILES
     ${SCHEMA_DIR}/ts_102918v010201.xsd
     ${SCHEMA_DIR}/xml.xsd
     ${SCHEMA_DIR}/ts_119612v010101.xsd
+    ${SCHEMA_DIR}/OpenDocument_dsig.xsd
 #    ${SCHEMA_DIR}/ts_119612v010101_additionaltypes.xsd
 )
 set( PUBLIC_HEADER
