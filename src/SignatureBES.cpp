@@ -154,6 +154,12 @@ public:
                 return new IStreamInputStream(static_cast<const DataFilePrivate*>(file)->m_is.get());
         }
 
+        for(const DataFile *file: doc_->metaFiles())
+        {
+            if(file->fileName() == File::fromUriPath(_uri))
+                return new IStreamInputStream(static_cast<const DataFilePrivate*>(file)->m_is.get());
+        }
+
         return XSECURIResolverXerces::resolveURI(uri);
     }
 

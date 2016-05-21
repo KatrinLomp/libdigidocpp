@@ -59,6 +59,7 @@ public:
 
     string path;
     std::vector<DataFile*> documents;
+    std::vector<DataFile*> metadata;
     vector<Signature*> signatures;
     map<string, ZipSerialize::Properties> properties;
 };
@@ -112,6 +113,7 @@ BDoc::~BDoc()
 {
     for_each(d->signatures.begin(), d->signatures.end(), [](Signature *s){ delete s; });
     for_each(d->documents.begin(), d->documents.end(), [](DataFile *file){ delete file; });
+    for_each(d->metadata.begin(), d->metadata.end(), [](DataFile *file){ delete file; });
     delete d;
 }
 
@@ -279,6 +281,11 @@ void BDoc::addAdESSignature(istream &sigdata)
     }
 }
 
+vector<DataFile*> BDoc::metaFiles() const
+{
+    return d->metadata;
+}
+
 Container* BDoc::openInternal(const string &path)
 {
     return new BDoc(path);
@@ -426,6 +433,15 @@ void BDoc::parseManifestAndLoadFiles(const ZipSerialize &z, const vector<string>
                 THROW("Found multiple references of file '%s' in zip container.", iter->full_path().c_str());
 
             manifestFiles.insert(iter->full_path());
+            if(mediaType() == BDoc::ADOC_MIMETYPE &&
+               (file.full_path().compare(0, 9, "META-INF/") == 0 ||
+                file.full_path().compare(0, 9, "metadata/") == 0))
+            {
+                stringstream *data = new stringstream;
+                z.extract(file.full_path(), *data);
+                d->metadata.push_back(new DataFilePrivate(data, file.full_path(), file.media_type()));
+                continue;
+            }
 #if 0
             fstream *data = new fstream(File::encodeName(File::tempFileName()).c_str(), fstream::binary);
 #else

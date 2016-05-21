@@ -59,6 +59,7 @@ namespace digidoc
           void addDataFile(const std::string &path, const std::string &mediaType) override;
           void addDataFile(std::istream *is, const std::string &fileName, const std::string &mediaType) override;
           std::vector<DataFile*> dataFiles() const override;
+          std::vector<DataFile*> metaFiles() const;
           void removeDataFile(unsigned int id) override;
 
           void addAdESSignature(std::istream &sigdata) override;
